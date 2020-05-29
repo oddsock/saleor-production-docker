@@ -1,6 +1,22 @@
 version: '3.5'
 
 services:
+  proxy:
+    image: traefik:v1.7.12-alpine
+    command: --configFile=/traefik.toml
+    restart: unless-stopped
+    networks:
+      - saleor-backend-tier
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /root/saleor/traefik/acme.json:/acme.json
+      - /root/saleor/traefik/traefik.toml:/traefik.toml
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=false"
+      - "traefik.frontend.rule=Host:traefik.domain.com"
   db:
     image: library/postgres:11.1-alpine
     restart: unless-stopped
@@ -20,11 +36,18 @@ services:
         SALEORVERSION: '2.10'
         SECRET_KEY: 'dummy'
         DATABASE_URL: 'postgres://saleor:saleor@db/saleor'
-        ALLOWED_HOSTS: '192.168.0.240'
+#        ALLOWED_HOSTS: '192.168.0.240'
+    volumes:
+      - /dir/for/saleor:/app/saleor/saleor:Z
+      - /dir/for/templates:/app/saleor/templates:Z
+      - /dir/for/media:/app/saleor/media
+      # prevents overshadowing
+      - /app/saleor/saleor/static/assets
+      - /app/saleor/templates/templated_email/compiled
     networks:
       saleor-backend-tier:
         aliases:
-          - 'FQDNOFSALEOR'
+          - 'saleor.domain.com'
 ## Ports only required if API_URI is the IP address of the docker host (CORS ISSUE!) ##
 #    ports:
 #      - 8000:8000
@@ -35,26 +58,32 @@ services:
       context: ./saleor-dashboard
       args:
         SALEORVERSION: '2.10'
-        API_URI: 'http://192.168.0.240:8000/graphql/'
+        API_URI: 'http://saleor.domain.com:8000/graphql/'
         APP_MOUNT_URI: '/dashboard/'
 #        STATIC_URL: 'http://192.168.0.240:9000/'
-#    command: npm start -- --host 0.0.0.0
     networks:
       - saleor-backend-tier
-    ports:
-      - 9000:80
+    volumes:
+      - /app/saleor-dashboard/node_modules/
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:dashboard.domain.com"
+      - "traefik.port=80"
 
   saleor-storefront:
     build:
       context: ./saleor-storefront
       args:
         SALEORVERSION: '2.10'
-        API_URI: 'http://192.168.0.240:8000/graphql/'
+        API_URI: 'http://saleor.domain.com:8000/graphql/'
+    volumes:
+      - /app/saleor-storefront/node_modules/
     networks:
       - saleor-backend-tier
-    ports:
-      - 81:80
-#    command: npm start -- --host 0.0.0.0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:storefront.domain.com"
+      - "traefik.port=80"
 
 networks:
   saleor-backend-tier:
