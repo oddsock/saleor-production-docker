@@ -1,0 +1,61 @@
+version: '3.5'
+
+services:
+  db:
+    image: library/postgres:11.1-alpine
+    restart: unless-stopped
+    networks:
+      - saleor-backend-tier
+    volumes:
+      - /dir/for/db/storage:/var/lib/postgresql
+    environment:
+      - POSTGRES_USER=saleor
+      - POSTGRES_PASSWORD=saleor
+
+## SALEOR needs you to go into container, run python /app/saleor/manage.py migrate first time to create DB info
+  saleor:
+    build:
+      context: ./saleor-core
+      args:
+        SALEORVERSION: '2.10'
+        SECRET_KEY: 'dummy'
+        DATABASE_URL: 'postgres://saleor:saleor@db/saleor'
+        ALLOWED_HOSTS: '192.168.0.240'
+    networks:
+      saleor-backend-tier:
+        aliases:
+          - 'FQDNOFSALEOR'
+## Ports only required if API_URI is the IP address of the docker host (CORS ISSUE!) ##
+#    ports:
+#      - 8000:8000
+    command: python manage.py runserver 0.0.0.0:8000
+
+  saleor-dashboard:
+    build:
+      context: ./saleor-dashboard
+      args:
+        SALEORVERSION: '2.10'
+        API_URI: 'http://192.168.0.240:8000/graphql/'
+        APP_MOUNT_URI: '/dashboard/'
+#        STATIC_URL: 'http://192.168.0.240:9000/'
+#    command: npm start -- --host 0.0.0.0
+    networks:
+      - saleor-backend-tier
+    ports:
+      - 9000:80
+
+  saleor-storefront:
+    build:
+      context: ./saleor-storefront
+      args:
+        SALEORVERSION: '2.10'
+        API_URI: 'http://192.168.0.240:8000/graphql/'
+    networks:
+      - saleor-backend-tier
+    ports:
+      - 81:80
+#    command: npm start -- --host 0.0.0.0
+
+networks:
+  saleor-backend-tier:
+    driver: bridge
