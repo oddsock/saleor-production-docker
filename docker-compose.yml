@@ -48,6 +48,9 @@ services:
       saleor-backend-tier:
         aliases:
           - 'saleor.domain.com'
+    labels:
+      - "traefik.enable=false"
+      - "traefik.frontend.rule=Host:saleor.domain.com"
 ## Ports only required if API_URI is the IP address of the docker host (CORS ISSUE!) ##
 #    ports:
 #      - 8000:8000
