@@ -42,14 +42,17 @@ RUN cd /tmp \
   && npm run build \
   && cp -r /tmp/saleor-dashboard/build/ /app/saleor-dashboard \
   && cp /tmp/saleor-dashboard/package*.json /app/saleor-dashboard
-
-## Set directory where command is run from ##
  
-WORKDIR /app/saleor-dashboard
+## Web server hosting built files ##
 
 FROM nginx:stable
 
+## Set directory where command is run from ##
+
 WORKDIR /app
+
+## copy built files from builder ##
+ 
 COPY --from=builder /tmp/saleor-dashboard/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /tmp/saleor-dashboard/build/ /app/
 COPY --from=builder /tmp/saleor-dashboard/package*.json /app/
